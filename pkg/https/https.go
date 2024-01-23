@@ -65,9 +65,9 @@ func (h *HTTPS) GenericMethod(hostname string) (HTTPResponse, error) {
 	//*************
 	startTime := time.Now()
 	if resp, err := client.Do(req); err != nil {
-		serverResponse.RTT = time.Now().Sub(startTime)
 		return serverResponse, err
 	} else {
+		serverResponse.RTT = time.Now().Sub(startTime)
 		serverResponse.extractRawBytes(resp)
 		serverResponse.extractResponseDetails(resp)
 		return serverResponse, nil

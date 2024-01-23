@@ -2,12 +2,15 @@ package dashserver
 
 import (
 	"dash/pkg/helper"
+	"dash/pkg/server"
+	"dash/pkg/types"
 	"dash/pkg/video"
 	"net/http"
 	"strings"
 )
 
 type DASHServer struct {
+	server.Server
 	BindAndServe        func(string, http.Handler) error
 	errChan             chan error
 	fileSource          string
@@ -16,20 +19,29 @@ type DASHServer struct {
 	VideoIDs            []string
 }
 
-func (ds *DASHServer) Start() {
-	//initialise go routine which listens out of directory changes
-	// TODO
-	ds.loadRoutes()
-	if err := ds.startServer(":8080", http.ListenAndServe); err != nil {
-		ds.errChan <- err
+func (ds *DASHServer) getRouteInfo() []types.RouteInfo {
+	return []types.RouteInfo{
+		{
+			HandlerFunc: ds.getVideoContents,
+			Path:        "/hlsmanifest/{video_uid}/{resolution}/{segment}",
+			Description: "get hlsmanifest as specified in the HTTP Request.",
+		},
+		{
+			HandlerFunc: ds.availableRoute,
+			Path:        "/available",
+			Description: "get list of available videos on webserver",
+		},
+		{
+			HandlerFunc: ds.retrieveManifest,
+			Path:        "/manifest/{video_uid}",
+			Description: "retrieve manifest associated with video_uid",
+		},
 	}
 }
 
-func (ds *DASHServer) startServer(bind string, listenAndServe func(string, http.Handler) error) error {
-	if err := listenAndServe(bind, nil); err != nil {
-		return err
-	}
-	return nil
+func (ds *DASHServer) Start(port string) {
+	ds.Server.LoadRoutes(ds.getRouteInfo())
+	go ds.Server.Start(port)
 }
 
 func (ds *DASHServer) hydrateVideosObject() error {

@@ -1,7 +1,7 @@
 # Builder Stage
 FROM golang:latest AS builder
 
-# Set the working directory in the builder image
+# Set the working docker in the builder image
 WORKDIR /cmd
 
 # Copy the Go source code and Makefile
@@ -13,7 +13,7 @@ RUN make build
 # Move executable to final image.
 FROM ubuntu:latest
 
-# Set the working directory in the final image
+# Set the working docker in the final image
 WORKDIR /cmd
 # Copy the binary from the builder image to the final image
 COPY --from=builder /cmd/releases/dashserver /cmd/

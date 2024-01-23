@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dash/internal/dashserver"
+	p "dash/internal/proxy"
 	"dash/pkg/helper"
 	"log"
 	"os"
@@ -12,13 +12,9 @@ func main() {
 	// Shared error channel
 	errChan := make(chan error, 1)
 
-	// Read supported resolutions from configuration file.
-	resolutions := []string{"1080p", "720p", "480p", "360p"}
-
-	// Launch DASH server
-	vs := dashserver.New("./data", resolutions, errChan)
-	go vs.Start(":8080")
-
+	proxy := p.New(errChan)
+	go proxy.Start(":8889")
+	proxy.LaunchNGINX()
 	// Monitor all channels for errors.
 	if err := helper.MonitorErrorChannel(errChan, true); err != nil {
 		log.Println(err)

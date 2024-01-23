@@ -7,6 +7,7 @@ build:
 	mkdir releases
 	go build -o ./releases/dashclient ./cmd/dashclient/
 	GOOS=linux go build -o ./releases/dashserver ./cmd/dashserver/
+	GOOS=linux go build -o ./releases/proxy ./cmd/proxy/
 
 update-readme:
 	TOTAL_COVERAGE=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}'); \

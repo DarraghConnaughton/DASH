@@ -63,10 +63,10 @@ func MonitorErrorChannel(errChan chan error, hardfail bool) error {
 		case err := <-errChan:
 			if err != nil {
 				log.Println("[-]received an error from the goroutine:", err)
-				if hardfail {
-					log.Println("[-] hard fail mode enabled, exiting main goroutine.")
-					return err
-				}
+				//if hardfail {
+				//	log.Println("[-] hard fail mode enabled, exiting main goroutine.")
+				//	return err
+				//}
 			}
 		}
 	}

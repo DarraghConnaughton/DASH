@@ -26,7 +26,7 @@ type DASHClient struct {
 	PlaybackBuffer       playbackbuffer.PlaybackBuffer
 	SupportedResolutions []string
 	Video                video.Video
-	PreviousRTT          time.Duration
+	PreviousRTT          int64
 }
 
 func (c *DASHClient) Watch(videouid string) {
@@ -95,13 +95,12 @@ func (c *DASHClient) serveVideoViaTCP() {
 
 func (c *DASHClient) determineQuality() interface{} {
 	quality := "1080p"
-	durationNanos := int64(c.PreviousRTT)
 	switch {
-	case durationNanos >= int64(1*time.Second) && durationNanos < int64(2*time.Second):
+	case c.PreviousRTT >= int64(50*time.Millisecond) && c.PreviousRTT < int64(100*time.Millisecond):
 		quality = "720p"
-	case durationNanos >= int64(2*time.Second) && durationNanos < int64(3*time.Second):
+	case c.PreviousRTT >= int64(100*time.Millisecond) && c.PreviousRTT < int64(200*time.Millisecond):
 		quality = "480p"
-	case durationNanos >= int64(3*time.Second) && durationNanos < int64(4*time.Second):
+	case c.PreviousRTT >= int64(200*time.Millisecond):
 		quality = "380p"
 	}
 	return quality
@@ -110,11 +109,15 @@ func (c *DASHClient) determineQuality() interface{} {
 func (c *DASHClient) loadDashSegment(segmentindex int) {
 	// Convert time.Duration to int64 representing nanoseconds
 	quality := c.determineQuality()
+	log.Println("quality:: ", quality)
 	resp, err := c.HTTPS.GenericMethod(
-		fmt.Sprintf("http://127.0.0.1:8080/hlsmanifest/%s/%s/%d", c.Video.VideoUID, quality, segmentindex))
+		fmt.Sprintf("http://127.0.0.1:8888/delay/hlsmanifest/%s/%s/%d", c.Video.VideoUID, quality, segmentindex))
 	if err != nil {
 		c.ErrorChan <- err
 	}
+
+	c.PreviousRTT = int64(resp.RTT)
+	log.Println(resp.RTT)
 	c.ByteChan <- resp.Bytes
 	c.PlaybackBuffer.UpdateTotalTimeLoaded(c.Video.EncodedRepresentations[0].SegmentLocations[segmentindex].Duration)
 }
@@ -166,12 +169,18 @@ func (c *DASHClient) acceptConnections(listener net.Listener) net.Conn {
 }
 
 func (c *DASHClient) retrieveVideoManifest(videouid string) error {
-	resp, err := c.HTTPS.GenericMethod(fmt.Sprintf("http://127.0.0.1:8080/manifest/%s", videouid))
+	resp, err := c.HTTPS.GenericMethod(fmt.Sprintf("http://127.0.0.1:8888/delay/manifest/%s", videouid))
 	if err != nil {
 		c.ErrorChan <- err
 	}
 
-	if resp.StatusCode == 404 {
+	log.Println(resp.Body)
+	log.Println(resp.StatusCode)
+	log.Println("123132123123123")
+	log.Println("123132123123123")
+	log.Println("123132123123123")
+
+	if resp.StatusCode == 404 || resp.StatusCode == 502 {
 		c.ErrorChan <- errors.New(fmt.Sprintf("unable to find %s", videouid))
 	}
 

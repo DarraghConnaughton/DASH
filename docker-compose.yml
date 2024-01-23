@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  dashserver:
+    image: docker-dashserver:latest
+    ports:
+      - "8080"
+    networks:
+      - internal-network
+
+  proxy:
+    image: docker-proxy:latest
+    ports:
+      - "8888:8888"
+    networks:
+      - internal-network
+
+networks:
+  internal-network:
