@@ -17,22 +17,11 @@ FROM nginx-util:latest
 WORKDIR /cmd
 
 # Copy the binary from the builder image to the final image
-COPY --from=builder /cmd/releases/proxy /cmd/
+COPY --from=builder /cmd/releases/controlproxy /cmd/
 COPY --from=builder /cmd/data /cmd/data
-COPY --from=builder /cmd/conf/nginx.conf /etc/nginx/nginx.conf
+COPY --from=builder /cmd/conf/controlproxy.nginx.conf /etc/nginx/nginx.conf
 
-# Drastically increases build time. Build image which contains the necessary binaries.
-
-
-## Update the package list and install additional tools
-#RUN apt-get update && apt-get install -y \
-#    lsof \
-#    procps \
-#    vim \
-#    curl \
-#    net-tools
-
-EXPOSE 8888
+EXPOSE 8886
 
 # Create a non-root user and set permissions
 RUN groupadd -r proxyuser && useradd -r -g proxyuser proxyuser
@@ -49,4 +38,4 @@ RUN mkdir -p /var/run/nginx \
 RUN chown -R proxyuser:proxyuser /var/log/
 
 USER proxyuser
-CMD ["/cmd/proxy"]
+CMD ["/cmd/controlproxy"]

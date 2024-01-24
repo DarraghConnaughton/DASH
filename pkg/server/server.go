@@ -2,24 +2,26 @@ package server
 
 import (
 	"dash/pkg/types"
-	"dash/pkg/video"
+	"fmt"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 )
 
 type Server struct {
-	BindAndServe        func(string, http.Handler) error
-	errChan             chan error
-	fileSource          string
-	Videos              []video.Video
-	SupportedResolution []string
-	VideoIDs            []string
+	BindAndServe func(string, http.Handler) error
+	errChan      chan error
 }
 
 func (ds *Server) LoadRoutes(routes []types.RouteInfo) {
+	log.Println("[+] loading routes.")
 	router := mux.NewRouter()
 	for _, route := range routes {
 		localRoute := route
+		log.Println(
+			fmt.Sprintf("[+] path: %s\n    description: %s\n",
+				localRoute.Path,
+				localRoute.Description))
 
 		router.HandleFunc(localRoute.Path, func(w http.ResponseWriter, r *http.Request) {
 			localRoute.HandlerFunc(w, r)
@@ -29,16 +31,12 @@ func (ds *Server) LoadRoutes(routes []types.RouteInfo) {
 }
 
 func (ds *Server) Start(port string) {
-	//initialise go routine which listens out of docker changes
-	// TODO
-	if err := ds.Server(port, http.ListenAndServe); err != nil {
-		ds.errChan <- err
-	}
+	log.Println(fmt.Sprintf("[+] starting webserver 127.0.0.1%s", port))
+	ds.Server(port, http.ListenAndServe)
 }
 
-func (ds *Server) Server(bind string, listenAndServe func(string, http.Handler) error) error {
+func (ds *Server) Server(bind string, listenAndServe func(string, http.Handler) error) {
 	if err := listenAndServe(bind, nil); err != nil {
-		return err
+		ds.errChan <- err
 	}
-	return nil
 }

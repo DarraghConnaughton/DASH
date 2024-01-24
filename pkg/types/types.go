@@ -26,3 +26,8 @@ type HLSManifest struct {
 	MediaSequence    int
 	SegmentLocations map[int]Segment
 }
+
+type NoiseData struct {
+	FileContents []byte `json:"contents"`
+	Noise        []byte `json:"noise"`
+}

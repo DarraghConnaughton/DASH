@@ -5,13 +5,11 @@ import (
 	"dash/pkg/server"
 	"dash/pkg/types"
 	"dash/pkg/video"
-	"net/http"
 	"strings"
 )
 
 type DASHServer struct {
 	server.Server
-	BindAndServe        func(string, http.Handler) error
 	errChan             chan error
 	fileSource          string
 	Videos              []video.Video
@@ -39,11 +37,6 @@ func (ds *DASHServer) getRouteInfo() []types.RouteInfo {
 	}
 }
 
-func (ds *DASHServer) Start(port string) {
-	ds.Server.LoadRoutes(ds.getRouteInfo())
-	go ds.Server.Start(port)
-}
-
 func (ds *DASHServer) hydrateVideosObject() error {
 	var videos []string
 	videoDirs, err := helper.ListDirectory(ds.fileSource)
@@ -63,6 +56,11 @@ func (ds *DASHServer) hydrateVideosObject() error {
 	}
 	ds.VideoIDs = videos
 	return nil
+}
+
+func (ds *DASHServer) Start(port string) {
+	ds.Server.LoadRoutes(ds.getRouteInfo())
+	go ds.Server.Start(port)
 }
 
 func New(source string, resolutions []string, errChan chan error) DASHServer {

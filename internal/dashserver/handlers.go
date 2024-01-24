@@ -22,6 +22,7 @@ func (ds *DASHServer) getVideoContents(w http.ResponseWriter, r *http.Request) {
 				vars["resolution"],
 				vars["segment"])
 			if helper.Exists(fp) {
+				log.Println(fmt.Sprintf("[+] serving file: %s", fp))
 				http.ServeFile(w, r, fp)
 				return
 			}
@@ -36,13 +37,12 @@ func (ds *DASHServer) availableRoute(w http.ResponseWriter, _ *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(jsonResponse); err != nil {
-		log.Println(err)
-		http.Error(w, "", http.StatusInternalServerError)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(jsonResponse); err != nil {
+			http.Error(w, "", http.StatusInternalServerError)
+		}
 	}
 }
 

@@ -4,14 +4,22 @@ services:
   dashserver:
     image: docker-dashserver:latest
     ports:
-      - "8080"
+      - "8080:8080"
     networks:
       - internal-network
 
-  proxy:
-    image: docker-proxy:latest
+  controlproxy:
+    image: docker-controlproxy:latest
+    ports:
+      - "8886:8886"
+    networks:
+      - internal-network
+
+  forwardproxy:
+    image: docker-forwardproxy:latest
     ports:
       - "8888:8888"
+      - "8889:8889"
     networks:
       - internal-network
 

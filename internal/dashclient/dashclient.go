@@ -22,7 +22,7 @@ import (
 type DASHClient struct {
 	ByteChan             chan []byte
 	ErrorChan            chan error
-	HTTPS                https.HTTPS
+	HTTPS                https.HTTP
 	PlaybackBuffer       playbackbuffer.PlaybackBuffer
 	SupportedResolutions []string
 	Video                video.Video
@@ -30,19 +30,17 @@ type DASHClient struct {
 }
 
 func (c *DASHClient) Watch(videouid string) {
-
-	err := c.retrieveVideoManifest(videouid)
-	if err != nil {
-		c.ErrorChan <- err
-	}
-	// Preload the buffer.
-	startsegment := c.initialSequentialBufferHydration()
-
-	// Gather the remainder of the DASH segments in accordance with playback buffer state.
-	go c.gatherDASHSegments(startsegment)
+	c.retrieveVideoManifest(videouid)
+	startsegment := c.PlaybackBufferHydration()
 	go c.serveVideoViaTCP()
+	c.gatherDASHSegments(startsegment)
 }
 
+// ============ FFPlayHandler
+// ============ FFPlayHandler
+// ============ FFPlayHandler
+// ============ FFPlayHandler
+// ============ FFPlayHandler
 func (c *DASHClient) establishListener() net.Listener {
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -90,36 +88,105 @@ func (c *DASHClient) serveVideoViaTCP() {
 	}(conn)
 
 	c.handleConnection(conn)
+}
+
+func (c *DASHClient) handleConnection(conn net.Conn) {
+	log.Printf("Accepted connection from %s\n", conn.RemoteAddr())
+
+	for {
+		select {
+		case segment, ok := <-c.ByteChan:
+			if !ok {
+				return
+			}
+			if err := binary.Write(conn, binary.BigEndian, uint64(len(segment))); err != nil {
+				c.ErrorChan <- err
+				return
+			}
+			_, err := io.Copy(conn, bytes.NewReader(segment))
+			if err != nil {
+				c.ErrorChan <- err
+				return
+			}
+		}
+	}
+	// Note: No need to send "viewing completed" error; just return from the function.
+	c.ErrorChan <- errors.New("viewing completed.")
 
 }
 
-func (c *DASHClient) determineQuality() interface{} {
+func (c *DASHClient) acceptConnections(listener net.Listener) net.Conn {
+	conn, err := listener.Accept()
+	if err != nil {
+		c.ErrorChan <- err
+	}
+	return conn
+}
+
+func triggerFFPlayChildProcess(address string) (*os.Process, error) {
+	cmd := exec.Command("ffplay", fmt.Sprintf("tcp://localhost%s", address))
+	//cmd := exec.Command("ffplay", fmt.Sprintf("tcp://localhost%s", address))
+	err := cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+	return cmd.Process, nil
+}
+
+//============ FFPlayHandler
+//============ FFPlayHandler
+//============ FFPlayHandler
+//============ FFPlayHandler
+//============ FFPlayHandler
+
+func (c *DASHClient) determineQuality() string {
 	quality := "1080p"
 	switch {
-	case c.PreviousRTT >= int64(50*time.Millisecond) && c.PreviousRTT < int64(100*time.Millisecond):
+	case c.PreviousRTT >= int64(150*time.Millisecond) && c.PreviousRTT < int64(250*time.Millisecond):
 		quality = "720p"
-	case c.PreviousRTT >= int64(100*time.Millisecond) && c.PreviousRTT < int64(200*time.Millisecond):
+	case c.PreviousRTT >= int64(250*time.Millisecond) && c.PreviousRTT < int64(500*time.Millisecond):
 		quality = "480p"
-	case c.PreviousRTT >= int64(200*time.Millisecond):
+	case c.PreviousRTT >= int64(500*time.Millisecond):
 		quality = "380p"
 	}
 	return quality
 }
 
 func (c *DASHClient) loadDashSegment(segmentindex int) {
-	// Convert time.Duration to int64 representing nanoseconds
 	quality := c.determineQuality()
-	log.Println("quality:: ", quality)
-	resp, err := c.HTTPS.GenericMethod(
-		fmt.Sprintf("http://127.0.0.1:8888/delay/hlsmanifest/%s/%s/%d", c.Video.VideoUID, quality, segmentindex))
+	url := fmt.Sprintf(
+		"http://127.0.0.1:8888/delay/hlsmanifest/%s/%s/%d",
+		c.Video.VideoUID,
+		quality,
+		segmentindex)
+
+	resp, err := c.HTTPS.GenericMethod(url)
 	if err != nil {
 		c.ErrorChan <- err
 	}
 
 	c.PreviousRTT = int64(resp.RTT)
-	log.Println(resp.RTT)
-	c.ByteChan <- resp.Bytes
-	c.PlaybackBuffer.UpdateTotalTimeLoaded(c.Video.EncodedRepresentations[0].SegmentLocations[segmentindex].Duration)
+
+	respParts := bytes.Split(resp.Bytes, []byte("!!thisIsTheDelimiter!!"))
+	if len(respParts) <= 1 {
+		c.ErrorChan <- errors.New("expected noise, but encountered none.")
+	}
+
+	log.Println(fmt.Sprintf(
+		"[/] RTT: %d;  [/] quality: %s; [/] bytes retrieved: [%d];",
+		c.PreviousRTT,
+		quality,
+		len(resp.Bytes)))
+
+	log.Println("_________________________")
+	log.Println("video data:: --> ", len(respParts[0]))
+	log.Println("noise     :: --> ", len(respParts[1]))
+	log.Println("_________________________")
+
+	c.ByteChan <- respParts[0]
+	c.PlaybackBuffer.UpdateTotalTimeLoaded(
+		c.Video.EncodedRepresentations[0].SegmentLocations[segmentindex].Duration,
+		c.ErrorChan)
 }
 
 func (c *DASHClient) gatherDASHSegments(startsegment int) {
@@ -127,7 +194,7 @@ func (c *DASHClient) gatherDASHSegments(startsegment int) {
 	defer close(c.ByteChan)
 	for i := startsegment; i < len(c.Video.EncodedRepresentations[0].SegmentLocations); i++ {
 		for c.PlaybackBuffer.GetTotalTimeLoaded()-time.Since(c.PlaybackBuffer.StartTime) > c.PlaybackBuffer.Buffersize {
-			time.Sleep(2)
+			time.Sleep(100 * time.Millisecond)
 		}
 
 		log.Println(fmt.Sprintf(
@@ -140,45 +207,15 @@ func (c *DASHClient) gatherDASHSegments(startsegment int) {
 
 }
 
-func (c *DASHClient) handleConnection(conn net.Conn) {
-	log.Printf("Accepted connection from %s\n", conn.RemoteAddr())
-	for {
-		fmt.Println("Inside the client retrieval loop!!")
-		segment, ok := <-c.ByteChan
-		if !ok {
-			break
-		}
-		if err := binary.Write(conn, binary.BigEndian, uint64(len(segment))); err != nil {
-			c.ErrorChan <- err
-		}
-		_, err := io.Copy(conn, bytes.NewReader(segment))
-		if err != nil {
-			c.ErrorChan <- err
-		}
-	}
-	//	forcefully exit;
-	c.ErrorChan <- errors.New("viewing completed.")
-}
-
-func (c *DASHClient) acceptConnections(listener net.Listener) net.Conn {
-	conn, err := listener.Accept()
-	if err != nil {
-		c.ErrorChan <- err
-	}
-	return conn
-}
-
-func (c *DASHClient) retrieveVideoManifest(videouid string) error {
+func (c *DASHClient) retrieveVideoManifest(videouid string) {
+	log.Println("we make it here?", videouid)
 	resp, err := c.HTTPS.GenericMethod(fmt.Sprintf("http://127.0.0.1:8888/delay/manifest/%s", videouid))
 	if err != nil {
+		log.Println(err)
 		c.ErrorChan <- err
 	}
-
-	log.Println(resp.Body)
-	log.Println(resp.StatusCode)
-	log.Println("123132123123123")
-	log.Println("123132123123123")
-	log.Println("123132123123123")
+	fmt.Println("here?")
+	fmt.Println("here?", resp)
 
 	if resp.StatusCode == 404 || resp.StatusCode == 502 {
 		c.ErrorChan <- errors.New(fmt.Sprintf("unable to find %s", videouid))
@@ -187,48 +224,33 @@ func (c *DASHClient) retrieveVideoManifest(videouid string) error {
 	var manifest []*types.HLSManifest
 	err = json.Unmarshal(resp.Bytes, &manifest)
 	if err != nil {
-		return err
+		c.ErrorChan <- err
 	}
 
 	c.Video.EncodedRepresentations = manifest
 	c.Video.VideoUID = videouid
-	return nil
 }
 
-func (c *DASHClient) initialSequentialBufferHydration() int {
+func (c *DASHClient) PlaybackBufferHydration() int {
 	segmentcount := 0
-	start := time.Now()
 	for c.PlaybackBuffer.GetTotalTimeLoaded() < c.PlaybackBuffer.Buffersize {
-
 		log.Println(fmt.Sprintf(
-			"buffer hydration in process. Retrieving segment %d, duration: %s",
+			"[/] buffer hydration in process. Retrieving segment %d, duration: %s",
 			segmentcount,
 			c.Video.EncodedRepresentations[0].SegmentLocations[segmentcount].Duration))
 
 		c.loadDashSegment(segmentcount)
 		segmentcount += 1
 	}
-
-	log.Println("hydration time: ", time.Since(start))
 	return segmentcount
-}
-
-func triggerFFPlayChildProcess(address string) (*os.Process, error) {
-	cmd := exec.Command("ffplay", fmt.Sprintf("tcp://localhost%s", address))
-	err := cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-	return cmd.Process, nil
 }
 
 func New(resolutions []string, byteChan chan []byte, errChan chan error) DASHClient {
 	return DASHClient{
-		PlaybackBuffer: playbackbuffer.New(),
-		//SourceURL:            videouid,
+		PlaybackBuffer:       playbackbuffer.New(),
 		ErrorChan:            errChan,
 		ByteChan:             byteChan,
 		SupportedResolutions: resolutions,
-		HTTPS:                https.HTTPS{},
+		HTTPS:                https.HTTP{},
 	}
 }

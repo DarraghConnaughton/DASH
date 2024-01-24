@@ -13,16 +13,15 @@ type PlaybackBuffer struct {
 	Buffersize      time.Duration
 }
 
-func (pb *PlaybackBuffer) UpdateTotalTimeLoaded(duration string) error {
+func (pb *PlaybackBuffer) UpdateTotalTimeLoaded(duration string, errChan chan error) {
 	seconds, err := strconv.ParseFloat(duration, 64)
 	if err != nil {
-		return err
+		errChan <- err
 	}
 
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
 	pb.totalTimeLoaded += time.Duration(seconds * float64(time.Second))
-	return nil
 }
 
 func (pb *PlaybackBuffer) GetTotalTimeLoaded() time.Duration {

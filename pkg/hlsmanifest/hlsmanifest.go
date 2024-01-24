@@ -36,21 +36,13 @@ func ParseHLSManifest(file *os.File, filepath string) (*types.HLSManifest, error
 			}
 			hlsPlaylist.MediaSequence = mediaSequence
 		} else if strings.HasPrefix(line, "#EXTINF:") {
-			// Extract duration from the line
 			duration := strings.TrimSuffix(strings.TrimPrefix(line, "#EXTINF:"), ",")
-
-			// Create a new Segment instance
 			segmentMap[segmentCount] = types.Segment{
 				Location: fmt.Sprintf("%s/%s", filepath, scanner.Scan()),
 				Duration: duration,
 			}
 			segmentCount += 1
-
 		}
-		//else if strings.Contains(line, ".ts") {
-		//	segmentMap[segmentCount] = fmt.Sprintf("%s/%s", filepath, line)
-		//	segmentCount += 1
-		//}
 	}
 	hlsPlaylist.SegmentLocations = segmentMap
 	if err := scanner.Err(); err != nil {
