@@ -5,15 +5,27 @@ import (
 	"dash/pkg/https"
 	"dash/pkg/proxy"
 	"dash/pkg/types"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"regexp"
+	"strings"
 )
 
 type ForwardProxy struct {
 	proxy.Proxy
 	errChan    chan error
 	HTTPServer https.HTTP
+	logRegex   *regexp.Regexp
+}
+
+type NetworkTraceData struct {
+	Timestamp  string
+	Bytes      string
+	Sequence   string
+	Resolution string
 }
 
 func (cp *ForwardProxy) GetRoutes() []types.RouteInfo {
@@ -26,26 +38,63 @@ func (cp *ForwardProxy) GetRoutes() []types.RouteInfo {
 	}
 }
 
-func readNginxAccessLog(logFilePath string) error {
+func (cp *ForwardProxy) readNginxAccessLog(logFilePath string) []NetworkTraceData {
+	var networkTraces []NetworkTraceData
 	file, err := os.Open(logFilePath)
 	if err != nil {
-		return err
+		cp.errChan <- err
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		fmt.Println(line)
+		matches := cp.logRegex.FindStringSubmatch(scanner.Text())
+		fmt.Println("matchesmatchesmatchesmatchesmatches")
+		fmt.Println(matches)
+		if len(matches) == 4 {
+
+			log.Println("matches")
+			log.Println(matches)
+			log.Println("matches")
+
+			pathParts := strings.Split(strings.Split(matches[2], "HTTP")[0], "/")
+
+			networkTraces = append(networkTraces, NetworkTraceData{
+				Timestamp:  matches[1],
+				Resolution: pathParts[len(pathParts)-2],
+				Sequence:   pathParts[len(pathParts)-3],
+				Bytes:      matches[3],
+			})
+
+			log.Println("*************")
+			log.Println(matches[1])
+			log.Println(pathParts[len(pathParts)-2])
+			log.Println(pathParts[len(pathParts)-3])
+			log.Println(matches[3])
+			log.Println("*************")
+		}
 	}
 	if err := scanner.Err(); err != nil {
-		return err
+		cp.errChan <- err
 	}
-	return nil
+	return networkTraces
 }
 
 func (cp *ForwardProxy) Process(w http.ResponseWriter, r *http.Request) {
 	//	READ NGINX ACCESS LOG.
-	readNginxAccessLog("/var/log/nginx/nginx.stdout.log")
+	log.Println("reretretretretrtreterte")
+	log.Println("reretretretretrtreterte")
+	log.Println("reretretretretrtreterte")
+	log.Println("reretretretretrtreterte")
+	log.Println("reretretretretrtreterte")
+	log.Println("reretretretretrtreterte")
+	log.Println("reretretretretrtreterte")
+	tmp := cp.readNginxAccessLog("/var/log/nginx/nginx.stdout.log")
+	data, err := json.Marshal(tmp)
+	if err != nil {
+		cp.errChan <- err
+	}
+	w.Write(data)
+
 }
 
 func New(errChan chan error) ForwardProxy {
@@ -54,6 +103,7 @@ func New(errChan chan error) ForwardProxy {
 		HTTPServer: https.HTTP{
 			Method: "GET",
 		},
+		logRegex: regexp.MustCompile(`\[([\d.]+)\] "(GET [^"]+)" \d+ (\d+)`),
 	}
 	return proxy
 }

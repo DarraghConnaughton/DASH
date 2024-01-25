@@ -13,7 +13,7 @@ func main() {
 	errChan := make(chan error, 1)
 
 	proxy := forwardproxy.New(errChan)
-	proxy.Start(":8887", proxy.GetRoutes())
+	proxy.Start(":8889", proxy.GetRoutes())
 
 	if err := helper.MonitorErrorChannel(errChan, true); err != nil {
 		log.Println(err)

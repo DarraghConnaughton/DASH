@@ -72,10 +72,17 @@ func (c *DASHClient) serveVideoViaTCP() {
 	port := strings.Split(listener.Addr().String(), "[::]")[1]
 	process := c.launchVideoWithFFPlay(port)
 	defer func(process *os.Process) {
+		log.Println("do we make it ehre??? ")
+		log.Println("do we make it ehre??? ")
+		log.Println("ideal place to cleanup ")
+		log.Println("ideal place to cleanup ")
+		log.Println("ideal place to cleanup ")
 		err := process.Kill()
 		if err != nil {
 			c.ErrorChan <- err
 		}
+
+		c.gatherNetworkTraces()
 	}(process)
 
 	// Accept connection and proceed to handler function.
@@ -88,6 +95,8 @@ func (c *DASHClient) serveVideoViaTCP() {
 	}(conn)
 
 	c.handleConnection(conn)
+	//	Do we make it here?
+
 }
 
 func (c *DASHClient) handleConnection(conn net.Conn) {
@@ -112,6 +121,8 @@ func (c *DASHClient) handleConnection(conn net.Conn) {
 	}
 	// Note: No need to send "viewing completed" error; just return from the function.
 	c.ErrorChan <- errors.New("viewing completed.")
+
+	//	Cleanup, gather traces, start again.
 
 }
 
@@ -243,6 +254,13 @@ func (c *DASHClient) PlaybackBufferHydration() int {
 		segmentcount += 1
 	}
 	return segmentcount
+}
+
+func (c *DASHClient) gatherNetworkTraces() {
+	log.Println(c.HTTPS.GenericMethod("http://127.0.0.1:8889/process"))
+	log.Println("blahblahblah")
+	log.Println("blahblahblah")
+	log.Println("blahblahblah")
 }
 
 func New(resolutions []string, byteChan chan []byte, errChan chan error) DASHClient {
