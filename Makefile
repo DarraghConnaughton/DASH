@@ -7,6 +7,7 @@ build:
 	mkdir releases
 	go build -o ./releases/dashclient ./cmd/dashclient/
 	GOOS=linux go build -o ./releases/dashserver ./cmd/dashserver/
+	GOOS=linux go build -o ./releases/monitor ./cmd/monitor/
 	GOOS=linux go build -o ./releases/controlproxy ./cmd/proxies/controlproxy/
 	GOOS=linux go build -o ./releases/forwardproxy ./cmd/proxies/forwardproxy/
 

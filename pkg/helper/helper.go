@@ -1,10 +1,14 @@
 package helper
 
 import (
+	"dash/pkg/types"
+	"encoding/csv"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func Contains(files []string, file string) bool {
@@ -57,6 +61,18 @@ func Exists(fp string) bool {
 	return true
 }
 
+func FormatMetric(hb *types.RPCHeartBeat) string {
+	return fmt.Sprintf(`[{
+		"metric": "dash_service_monitor",
+		"timestamp": %d,
+		"value": %d,
+		"tags": {
+			"service": "%s",
+			"type": "active_goroutines"
+		}
+	}]`, time.Now().Unix(), hb.NumberOfGoroutines, hb.UID)
+}
+
 func MonitorErrorChannel(errChan chan error, hardfail bool) error {
 	for {
 		select {
@@ -70,4 +86,30 @@ func MonitorErrorChannel(errChan chan error, hardfail bool) error {
 			}
 		}
 	}
+}
+
+func WriteCSV(videoid string, data []types.NetworkTraceData) error {
+	file, err := os.Create(fmt.Sprintf("%s.%d.output.csv", videoid, time.Now().UnixNano()))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+	header := []string{"Timestamp", "Bytes", "Sequence", "Resolution"}
+	if err := writer.Write(header); err != nil {
+		panic(err)
+	}
+
+	for _, traceData := range data {
+		row := []string{traceData.Timestamp, traceData.Bytes, traceData.Sequence, traceData.Resolution}
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return err
+	}
+	return nil
 }

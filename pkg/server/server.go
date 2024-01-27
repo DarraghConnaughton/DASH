@@ -19,7 +19,7 @@ func (ds *Server) LoadRoutes(routes []types.RouteInfo) {
 	for _, route := range routes {
 		localRoute := route
 		log.Println(
-			fmt.Sprintf("[+] path: %s\n    description: %s\n",
+			fmt.Sprintf("[+] path: %s; description: %s",
 				localRoute.Path,
 				localRoute.Description))
 

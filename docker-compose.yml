@@ -1,6 +1,26 @@
 version: '3'
 
 services:
+
+  opentsdb:
+    image: petergrace/opentsdb-docker:latest
+    environment:
+      - WAITSECS=30
+    ports:
+      - "4242:4242"
+      - "60030:60030"
+    volumes:
+      - "/Users/darraghconnaughton/Github/thirdParty/opentsdb-docker/data:/data/hbase"
+    networks:
+      - internal-network
+
+  monitor:
+    image: docker-monitor:latest
+    ports:
+      - "1234:1234"
+    networks:
+      - internal-network
+
   dashserver:
     image: docker-dashserver:latest
     ports:

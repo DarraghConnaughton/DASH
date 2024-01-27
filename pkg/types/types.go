@@ -31,3 +31,19 @@ type NoiseData struct {
 	FileContents []byte `json:"contents"`
 	Noise        []byte `json:"noise"`
 }
+
+type NetworkTraceData struct {
+	Timestamp  string
+	Bytes      string
+	Sequence   string
+	Resolution string
+}
+
+type RPCHeartBeat struct {
+	UID                string
+	CPU                int
+	NumberOfGoroutines int
+	AllocatedMemory    uint64
+	TotalAlloc         uint64
+	SysMem             uint64
+}

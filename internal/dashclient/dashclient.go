@@ -2,6 +2,7 @@ package dashclient
 
 import (
 	"bytes"
+	"dash/pkg/helper"
 	"dash/pkg/https"
 	"dash/pkg/playbackbuffer"
 	"dash/pkg/types"
@@ -82,7 +83,7 @@ func (c *DASHClient) serveVideoViaTCP() {
 			c.ErrorChan <- err
 		}
 
-		c.gatherNetworkTraces()
+		helper.WriteCSV(c.Video.VideoUID, c.gatherNetworkTraces())
 	}(process)
 
 	// Accept connection and proceed to handler function.
@@ -95,8 +96,6 @@ func (c *DASHClient) serveVideoViaTCP() {
 	}(conn)
 
 	c.handleConnection(conn)
-	//	Do we make it here?
-
 }
 
 func (c *DASHClient) handleConnection(conn net.Conn) {
@@ -119,11 +118,6 @@ func (c *DASHClient) handleConnection(conn net.Conn) {
 			}
 		}
 	}
-	// Note: No need to send "viewing completed" error; just return from the function.
-	c.ErrorChan <- errors.New("viewing completed.")
-
-	//	Cleanup, gather traces, start again.
-
 }
 
 func (c *DASHClient) acceptConnections(listener net.Listener) net.Conn {
@@ -221,6 +215,8 @@ func (c *DASHClient) gatherDASHSegments(startsegment int) {
 func (c *DASHClient) retrieveVideoManifest(videouid string) {
 	log.Println("we make it here?", videouid)
 	resp, err := c.HTTPS.GenericMethod(fmt.Sprintf("http://127.0.0.1:8888/delay/manifest/%s", videouid))
+	log.Println(resp)
+	log.Println(err)
 	if err != nil {
 		log.Println(err)
 		c.ErrorChan <- err
@@ -256,11 +252,17 @@ func (c *DASHClient) PlaybackBufferHydration() int {
 	return segmentcount
 }
 
-func (c *DASHClient) gatherNetworkTraces() {
-	log.Println(c.HTTPS.GenericMethod("http://127.0.0.1:8889/process"))
-	log.Println("blahblahblah")
-	log.Println("blahblahblah")
-	log.Println("blahblahblah")
+func (c *DASHClient) gatherNetworkTraces() []types.NetworkTraceData {
+	dataCapture, err := c.HTTPS.GenericMethod("http://127.0.0.1:8889/process")
+	if err != nil {
+		c.ErrorChan <- err
+	}
+	var traces []types.NetworkTraceData
+	err = json.Unmarshal(dataCapture.Bytes, &traces)
+	if err != nil {
+		c.ErrorChan <- err
+	}
+	return traces
 }
 
 func New(resolutions []string, byteChan chan []byte, errChan chan error) DASHClient {

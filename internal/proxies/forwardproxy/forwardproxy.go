@@ -21,13 +21,6 @@ type ForwardProxy struct {
 	logRegex   *regexp.Regexp
 }
 
-type NetworkTraceData struct {
-	Timestamp  string
-	Bytes      string
-	Sequence   string
-	Resolution string
-}
-
 func (cp *ForwardProxy) GetRoutes() []types.RouteInfo {
 	return []types.RouteInfo{
 		{
@@ -38,8 +31,8 @@ func (cp *ForwardProxy) GetRoutes() []types.RouteInfo {
 	}
 }
 
-func (cp *ForwardProxy) readNginxAccessLog(logFilePath string) []NetworkTraceData {
-	var networkTraces []NetworkTraceData
+func (cp *ForwardProxy) readNginxAccessLog(logFilePath string) []types.NetworkTraceData {
+	var networkTraces []types.NetworkTraceData
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		cp.errChan <- err
@@ -58,7 +51,7 @@ func (cp *ForwardProxy) readNginxAccessLog(logFilePath string) []NetworkTraceDat
 
 			pathParts := strings.Split(strings.Split(matches[2], "HTTP")[0], "/")
 
-			networkTraces = append(networkTraces, NetworkTraceData{
+			networkTraces = append(networkTraces, types.NetworkTraceData{
 				Timestamp:  matches[1],
 				Resolution: pathParts[len(pathParts)-2],
 				Sequence:   pathParts[len(pathParts)-3],
