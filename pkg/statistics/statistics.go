@@ -57,7 +57,8 @@ func (sb *StatBot) Start() {
 			var response int
 			err = client.Call("Monitor.HandleHeartBeat", hb, &response)
 			if err != nil {
-				log.Printf("[statbot] error communicating with monitor server: %s", err)
+				log.Printf("[statbot] error communicating with monitor server: %s. Attempting to establish a new connection", err)
+				sb.Start()
 			} else {
 				log.Println("[statbot] heartbeat.")
 			}

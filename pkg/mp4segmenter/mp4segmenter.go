@@ -44,5 +44,7 @@ func EncodeAndSegmentMP4(inputpath string, outputpath string) {
 }
 
 func main() {
+	// GATHER PROCESSED AND TO BE PROCESSED FILES
+	
 	EncodeAndSegmentMP4("video2.mp4", "./data/video2")
 }

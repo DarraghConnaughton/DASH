@@ -11,7 +11,6 @@ import (
 	"net/rpc"
 )
 
-// Monitor is the struct that implements the remote methods.
 type Monitor struct {
 	ErrorChan chan error
 }
@@ -40,7 +39,7 @@ func (s *Monitor) Start(network string, bind string) {
 }
 
 // HandleHeartBeat is a method of Monitor to handle incoming requests.
-func (s *Monitor) HandleHeartBeat(hb *types.RPCHeartBeat, reply *int) { // Perform some processing with the received data
+func (s *Monitor) HandleHeartBeat(hb *types.RPCHeartBeat, reply *int) error { // Perform some processing with the received data
 	log.Printf("[%s statbot report] # goroutines: %d; AllocMemory: %d; TotalAlloc: %d; SysMem: %d\n",
 		hb.UID,
 		hb.NumberOfGoroutines,
@@ -52,6 +51,9 @@ func (s *Monitor) HandleHeartBeat(hb *types.RPCHeartBeat, reply *int) { // Perfo
 		"http://dash-opentsdb-1:4242/api/put",
 		"application/json",
 		bytes.NewBuffer([]byte(helper.FormatMetric(hb))))
+	log.Println(resp)
+	log.Println(err)
+	log.Println("-------")
 	if err != nil {
 		s.ErrorChan <- err
 	}
@@ -64,6 +66,7 @@ func (s *Monitor) HandleHeartBeat(hb *types.RPCHeartBeat, reply *int) { // Perfo
 
 	log.Printf("opentsdb response: status_code: %s ", resp.StatusCode)
 	*reply = 1
+	return nil
 }
 
 func New(errChan chan error) *Monitor {

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 make build
-#docker build -t docker-dashserver -f ./dashserver.dockerfile .
 docker build -t docker-dashserver -f ./dashserver.dockerfile .
 docker build -t docker-monitor -f ./monitor.dockerfile .
 docker build -t docker-controlproxy -f ./controlproxy.dockerfile .

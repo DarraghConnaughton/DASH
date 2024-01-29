@@ -14,12 +14,15 @@ services:
     networks:
       - internal-network
 
+
   monitor:
     image: docker-monitor:latest
     ports:
       - "1234:1234"
     networks:
       - internal-network
+    depends_on:
+      - opentsdb
 
   dashserver:
     image: docker-dashserver:latest
@@ -27,6 +30,9 @@ services:
       - "8080:8080"
     networks:
       - internal-network
+    depends_on:
+      - opentsdb
+
 
   controlproxy:
     image: docker-controlproxy:latest
@@ -34,6 +40,8 @@ services:
       - "8886:8886"
     networks:
       - internal-network
+    depends_on:
+      - opentsdb
 
   forwardproxy:
     image: docker-forwardproxy:latest
@@ -42,6 +50,9 @@ services:
       - "8889:8889"
     networks:
       - internal-network
+    depends_on:
+      - opentsdb
+
 
 networks:
   internal-network:
